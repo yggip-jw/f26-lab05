@@ -37,15 +37,33 @@ requires finding and synchronizing both copies, including their rounding order.
 
 ### Smell 2
 
-**The smell.**
+**The smell.** Speculative over-abstraction: a configurable factory and mutable channel
+registry support a notification system whose only channel is email.
 
-**Classic or agent-specific.**
+**Classic or agent-specific.** Agent-specific, using the lecture's "Speculative
+over-abstraction" category (slide 42), a form of classic speculative generality.
+The likely cause is an underspecified request: the generator appears to have assumed
+a need for plugin-style extensibility. That cause is inferred from the structure;
+the original generation request is not available.
 
-**Where in the code.**
+**Where in the code.** `src/notifications/notifierFactory.ts`: `ChannelName` permits
+only `'email'`, but `registerChannel()`, `registeredChannels()`, and
+`createNotificationChannel()` manage and query a module-level builder registry.
+The module registers just `EmailChannel`, and the `ReservationManager` constructor
+always calls the factory with `DEFAULT_NOTIFIER_CONFIG`.
 
-**The principle it violates.**
+**The principle it violates.** YAGNI: decouple changes that are actually needed rather
+than paying for speculative extension points. The unnecessary part is the dynamic
+registry and selection machinery, not the `NotificationChannel` interface itself,
+which can provide a useful boundary for substitution and testing.
 
-**What it makes expensive.**
+**What it makes expensive.** Understanding which notifier a manager receives requires
+tracing the default config, factory lookup, and registration side effect instead of
+one explicit construction or injected dependency. Giving two managers different test
+notifiers is also awkward: the constructor accepts no notifier, so using the registry
+requires replacing a shared builder between constructions and restoring it afterward.
+That adds test setup and risks order-dependent tests, without a current requirement
+for runtime channel registration.
 
 ### Smell 3
 
