@@ -67,15 +67,34 @@ for runtime channel registration.
 
 ### Smell 3
 
-**The smell.**
+**The smell.** Phantom complexity: the reservation manager has a cache lookup path
+that cannot produce a cache hit through its current public operations.
 
-**Classic or agent-specific.**
+**Classic or agent-specific.** Agent-specific, using the lecture's "Phantom complexity"
+category (slide 44). Missing context is a plausible cause: the cache machinery appears
+to have been added without checking whether the service ever populates it. Free volume
+could also explain the extra configuration and infrastructure. These are inferred
+causes, not verified facts about the generation process.
 
-**Where in the code.**
+**Where in the code.** `src/reservationManager.ts`: the constructor creates a private
+`QueryCache`, and `listBookingsForRoom()` calls `get()` before querying storage.
+However, the manager never calls `set()` or exposes this cache to callers, so its
+entries remain empty and every lookup falls through to `storage.findByRoom()`.
+`src/cache/queryCache.ts` and `src/cache/cacheConfig.ts` supply TTL, capacity, and
+invalidation machinery that provides no caching benefit on this path.
 
-**The principle it violates.**
+**The principle it violates.** Simplicity (KISS): every additional mechanism should
+justify its maintenance cost with useful behavior. This integration adds a dependency,
+configuration, and a cache-hit branch without changing the query result or avoiding
+any storage reads. The issue is the unused integration, not that caching itself is
+inherently unnecessary.
 
-**What it makes expensive.**
+**What it makes expensive.** Investigating slow room queries requires tracing the cache
+configuration and lookup path before discovering that no values are ever stored;
+tuning the TTL or capacity cannot help. Making this cache useful is also more than
+adding a `set()` call: creating or cancelling a booking would then require invalidating
+the room's cached list to avoid stale results. The current scaffolding hides that
+unfinished design work behind the appearance of a working optimization.
 
 ---
 
