@@ -11,17 +11,29 @@ Three smells, each in a different part of the module. For each one, fill in all 
 
 ### Smell 1
 
-**The smell.** Name it, using the vocabulary from lecture.
+**The smell.** Duplication over reuse: the booking and reporting paths independently
+implement the same pricing rules.
 
-**Classic or agent-specific.** Which, and why that label. For agent-specific, say which of
-the lecture's three causes produced it.
+**Classic or agent-specific.** Agent-specific, using the lecture's "Duplication over reuse"
+category (slide 41). The likely cause is missing context: the reporting implementation
+rebuilds pricing logic already present in the booking manager. This is an inference from
+the duplicated code, not a verified account of how it was generated.
 
-**Where in the code.** File and, where there is one, method.
+**Where in the code.** `src/reservationManager.ts`, `calculatePrice()` and
+`applyDiscounts()`, and `src/reportGenerator.ts`, `priceOf()`. Both paths calculate the
+hourly charge, apply a 1.15 premium multiplier, a 0.9 multiplier for bookings lasting
+at least 180 minutes, and a 0.95 multiplier for bookings starting at or after 17:00,
+rounding after each step. The policy constants are also duplicated in these files.
 
-**The principle it violates.** Name the principle. "This is too big" is not a principle.
+**The principle it violates.** DRY: one pricing policy has two independently maintained
+representations. The pricing decision is not hidden behind a shared module boundary,
+so a policy change cannot stay local to one implementation.
 
-**What it makes expensive.** A concrete future change, or something that already goes wrong
-today. What breaks first?
+**What it makes expensive.** Changing the long-booking discount from 10% to 15% requires
+updating both implementations. If only the manager is updated, a new three-hour booking
+in a non-premium room at $10/hour, starting before 17:00, costs $25.50, while the revenue
+report still computes $27.00 for that same booking. Every pricing change therefore
+requires finding and synchronizing both copies, including their rounding order.
 
 ### Smell 2
 
