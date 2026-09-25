@@ -14,8 +14,7 @@ Three smells, each in a different part of the module. For each one, fill in all 
 **The smell.** Duplication over reuse: the booking and reporting paths independently
 implement the same pricing rules.
 
-**Classic or agent-specific.** Agent-specific, using the lecture's "Duplication over reuse"
-category (slide 41). The likely cause is missing context: the reporting implementation
+**Classic or agent-specific.** Agent-specific,"Duplication over reuse". The likely cause is missing context: the reporting implementation
 rebuilds pricing logic already present in the booking manager. This is an inference from
 the duplicated code, not a verified account of how it was generated.
 
@@ -40,8 +39,8 @@ requires finding and synchronizing both copies, including their rounding order.
 **The smell.** Speculative over-abstraction: a configurable factory and mutable channel
 registry support a notification system whose only channel is email.
 
-**Classic or agent-specific.** Agent-specific, using the lecture's "Speculative
-over-abstraction" category (slide 42), a form of classic speculative generality.
+**Classic or agent-specific.** Agent-specific, "Speculative
+over-abstraction" category, a form of classic speculative generality.
 The likely cause is an underspecified request: the generator appears to have assumed
 a need for plugin-style extensibility. That cause is inferred from the structure;
 the original generation request is not available.
@@ -70,8 +69,8 @@ for runtime channel registration.
 **The smell.** Phantom complexity: the reservation manager has a cache lookup path
 that cannot produce a cache hit through its current public operations.
 
-**Classic or agent-specific.** Agent-specific, using the lecture's "Phantom complexity"
-category (slide 44). Missing context is a plausible cause: the cache machinery appears
+**Classic or agent-specific.** Agent-specific, "Phantom complexity"
+category. Missing context is a plausible cause: the cache machinery appears
 to have been added without checking whether the service ever populates it. Free volume
 could also explain the extra configuration and infrastructure. These are inferred
 causes, not verified facts about the generation process.
