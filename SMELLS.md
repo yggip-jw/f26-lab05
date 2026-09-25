@@ -140,24 +140,57 @@ One proposal for each milestone 1 smell you did not fix.
 
 ### Proposal A (not coded)
 
-**The problem.** Name it.
+**The problem.** Smell 2, speculative over-abstraction in
+`src/notifications/notifierFactory.ts`: a mutable builder registry and channel-selection
+machinery add indirection for a service that currently uses only email.
 
-**The decomposition.** What are the pieces, what does each own, and where do the rules live?
+**The decomposition.** Keep `NotificationChannel` as the boundary and let
+`ReservationManager` accept a notifier through its constructor, defaulting to an
+`EmailChannel` for existing callers. The manager owns when to send booking confirmations
+and cancellations; `EmailChannel` owns email formatting and the send result. The code
+constructing the manager chooses the channel and sender address. Remove the global
+builder registry and factory selection API after migrating any callers. Tests could
+then supply a different notifier to each manager without changing shared state.
 
-**One cost.** Something this actually costs. "No real downside" is not a cost.
+**One cost.** Removing the exported registration/factory API requires migrating callers
+that use it. If runtime channel discovery later becomes a real requirement, explicit
+constructor injection alone will not provide it; a selection mechanism would need to
+be designed at that point.
 
 ### Proposal B (not coded)
 
-**The problem.**
+**The problem.** Smell 3, phantom complexity in the cache integration: the manager checks
+an empty private cache on every room query but never populates it.
 
-**The decomposition.**
+**The decomposition.** Make `ReservationManager.listBookingsForRoom()` delegate directly
+to `StorageProvider.findByRoom()`, removing its cache field, construction, imports, and
+lookup branch. The manager owns reservation workflows; the storage implementation owns
+retrieval and insertion order behind the existing `StorageProvider` boundary. Remove
+the cache module and configuration if a repository-wide usage check confirms no other
+consumers. No TTL or invalidation policy is needed in this design. If measured query
+cost later justifies caching, put it behind the storage boundary, with explicit rules
+for invalidation on writes rather than partial cache logic in the manager.
 
-**One cost.**
+**One cost.** This deliberately leaves every query accessing storage. That preserves
+current behavior, but if storage becomes expensive, introducing a useful cache will
+require fresh work on invalidation and tests instead of simply enabling a setting.
 
 ### The thing that looks smelly but is fine
 
-**What it is.** File and method.
+**What it is.** `src/validation.ts`, `validateReservationRequest()`, could be flagged as
+a Long method because it contains many conditional checks.
 
-**Why it is fine.** Defend it with properties of the code, not with its line count.
+**Why it is fine.** The checks form one cohesive operation: decide whether a request
+is valid for the supplied room under the current building's rules. The function has
+explicit inputs, no side effects, and returns the first failure in a visible order.
+Basic time checks precede duration and scheduling rules, so later checks operate on
+values already checked for validity. It does not also persist bookings, price them,
+or send notifications. Keeping this fixed validation sequence together makes its
+error precedence easy to inspect; the number of conditions alone does not justify
+splitting it into a framework of validators.
 
-**What would flip your verdict.** Name the change that would turn this into a real problem.
+**What would flip your verdict.** Supporting multiple buildings with independently
+changing opening hours, duration limits, premium-room policies, and error priorities
+would make hard-coded checks accumulate unrelated policy branches. At that point,
+separate universal request-shape checks from an explicitly supplied building policy,
+so changing one building's rules does not require editing the shared validation flow.
