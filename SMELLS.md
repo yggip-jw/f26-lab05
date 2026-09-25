@@ -102,15 +102,35 @@ unfinished design work behind the appearance of a working optimization.
 
 One fix, behavior preserved, suite green, zero test edits.
 
-**Which smell you attacked.** And why that one.
+**Which smell you attacked.** Smell 1, duplication over reuse in pricing. The two
+implementations encode the same policy, so sharing that policy removes the need to
+synchronize future pricing changes without redesigning the reservation service.
 
-**What changed.** Files and methods you touched, and what the code does differently now.
+**What changed.** Added `src/pricing.ts` with a pure `calculatePrice(room, start, end)`
+function that owns the pricing constants and calculation. In `src/reservationManager.ts`,
+the existing public `calculatePrice()` delegates to it; the duplicated constants and
+private `applyDiscounts()` were removed. In `src/reportGenerator.ts`, `revenue()` calls
+the same function; the duplicated constants, private `priceOf()`, and its now-unused
+`durationOf()` helper were removed. Both paths now use one implementation.
 
-**What you deliberately did not touch.** Name the scope line you drew and why you drew it
-there. "I ran out of time" is not a scope line.
+**What you deliberately did not touch.** The scope line is sharing the existing pricing
+policy, not changing it. Existing public class methods, thresholds, multiplier order,
+and rounding after every stage are preserved. Revenue still recalculates prices using
+the supplied room data rather than reading `booking.priceCents`; changing that would
+alter behavior when room rates change. Validation, report filtering, notifications,
+cache integration, and all tests are unchanged. Those concerns are independent of
+eliminating pricing duplication and would make this fix harder to review.
 
-**How you know behavior is preserved.** Point at the suite, say what it actually covers, and
-say what it would not catch.
+**How you know behavior is preserved.** Before and after the change, `npm test` passes
+all 39 tests across three files, and `npm run typecheck` passes. No tests were edited.
+`tests/booking.test.ts` checks base pricing, the three-hour discount, premium pricing,
+and the evening discount separately, alongside booking and cancellation behavior.
+`tests/reporting.test.ts` checks revenue totals, averages, per-room totals, exclusion
+of cancelled bookings, availability, and occupancy. The suite does not exhaustively
+check combined discounts or rounding-sensitive rates, so a green suite alone does not
+prove equivalence. Reviewing the extracted calculation confirms the original order:
+round the hourly charge, then apply and round the premium, long-booking, and evening
+multipliers in that order, with the same conditions and constants.
 
 ---
 
